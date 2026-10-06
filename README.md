@@ -1,45 +1,176 @@
-# UCS503P Project Template
+# SyncDrive
 
-This is a project template for UCS503P Project (2026-27
-ODD). 
+**Signal-Aware Navigation and Speed Optimization System**
 
-There are 3 reports in LaTeX format, namely *a*)
-Project Proposal, *b*) Project Report Prototype Stage,
-and *c*) Project Report Final -- each in their
-respective folders.
+> Drive slower. Stop less. Arrive faster.
 
-Journals are stacked under the folder `journals`, one
-folder for each team member.  A sample entry has been
-made for example.
+SyncDrive is a signal-aware GPS prototype that tells a driver *when to leave* and *what speed to maintain* so they pass through every traffic signal on green — eliminating red-light wait time entirely. The result: a lower speed with zero stops beats a faster speed with multiple stops.
 
-The source code is contained within the folder `code`.
+**Core proof:**
 
-The documentation is under folder `docs`.
+| Strategy | Speed | Drive time | Wait time | **Total** |
+|---|---|---|---|---|
+| Normal GPS | 50 km/h | 1.7 min | 2.1 min | **3.8 min** |
+| SyncDrive  | 32 km/h | 2.6 min | 0 min   | **2.6 min** ✅ |
 
-All other aspects of code organisation are left to the
-discretion of the user(s).
+---
 
+## Team
+
+| Name | Roll No. |
+|---|---|
+| Tarun Mahindra | 1024030177 |
+| Parth Puri | 1024030178 |
+| Adhiraj Kapur | 1024031077 |
+
+**Course:** UCS503P — Software Engineering Project, 2026-27 Odd Semester  
+**Institute:** Thapar Institute of Engineering and Technology  
+**Instructor:** Dr. Paramveer Sidhu
+
+---
+
+## Quick Start
+
+```shell
+# No install, no server, no API key needed
+open code/index.html   # macOS
+# or just double-click code/index.html in your file explorer
+```
+
+The entire application is a single HTML file. Open it in any modern browser.
+
+---
+
+## Repository Structure
+
+```
+SyncDrive/
+├── code/
+│   ├── index.html                      ← full working prototype (map + UI + algorithm)
+│   └── CONTEXT.md                      ← AI-handoff documentation
+│
+├── diagrams/
+│   ├── README.md                       ← diagram index
+│   ├── 01-use-case.md                  ← Use Case diagram
+│   ├── 02-class.md                     ← Class diagram
+│   ├── 03-sequence.md                  ← Sequence diagram
+│   ├── 04-activity.md                  ← Activity diagram
+│   ├── 05-state.md                     ← State machine diagram
+│   ├── 06-swimlane.md                  ← Swimlane (cross-functional) diagram
+│   ├── 07-deployment.md                ← Deployment diagram
+│   └── 08-er.md                        ← Entity-Relationship diagram
+│
+├── journals/
+│   ├── 1024030177-tarun/               ← 5 weekly entries (W1–W5)
+│   ├── 1024030178-parth/               ← 5 weekly entries (W1–W5)
+│   └── 1024031077-adhiraj/             ← 5 weekly entries (W1–W5)
+│
+├── project-proposal/
+│   ├── main.tex
+│   └── main.pdf
+│
+├── project-report-prototype-stage/
+│   ├── main.tex
+│   └── main.pdf
+│
+├── project-report-final/
+│   └── TODO
+│
+└── assets/
+    ├── architecture-diagram.pdf
+    ├── tiet-logo.svg
+    └── ...
+```
+
+---
+
+## How It Works
+
+### The Green Wave Concept
+
+Traffic engineers use *green waves* — timing signals along a corridor so a vehicle at a specific speed hits all greens. SyncDrive reverses this for the individual driver: instead of the city timing lights for a fixed speed, the driver adjusts their speed to match whatever wave is currently running.
+
+### Algorithm
+
+```
+For each speed in [25, 28, 30, 32, 35, 38, 40, 42, 45] km/h:
+  For each departure offset in 0..25 min (step 15 s):
+    dep = arrivalTime - driveTime - offset
+    Simulate each signal:
+      phase = (dep + timeToSignal + elapsed) % cycle
+      if red: elapsed += waitUntilGreen(signal, phase)
+    score = totalTime - 0.5 * greensHit   ← minimise
+```
+
+The `elapsed` accumulation is critical: each red stop shifts all subsequent signal arrival times, so missing it gives wrong results.
+
+### Normal GPS comparison
+
+Uses the **same departure time** as SyncDrive but drives at 50 km/h, hitting signals at uncontrolled phases and accumulating real wait time — a direct apples-to-apples comparison.
+
+---
+
+## Prototype Coverage
+
+| | Count |
+|---|---|
+| Locations | 7 (Sec 17, 22, 35, 43, PGI, Elante, Tribune Chowk) |
+| Traffic signals | 16 (simulated Chandigarh sector grid) |
+| Routes | 42 (all bidirectional pairs) |
+| Tech dependencies | 0 (no install, no API key, no server) |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Map | Leaflet.js 1.9.4 |
+| Tiles | Stadia Maps `alidade_smooth_dark` (free, no key) |
+| Font | Inter via Google Fonts |
+| Language | Vanilla JavaScript (ES6+) |
+| Build | None — single HTML file |
+
+---
+
+## Diagrams
+
+All UML and architecture diagrams are in [`diagrams/`](./diagrams/README.md), rendered as Mermaid markdown (GitHub renders these natively):
+
+- [Use Case](./diagrams/01-use-case.md)
+- [Class](./diagrams/02-class.md)
+- [Sequence](./diagrams/03-sequence.md)
+- [Activity](./diagrams/04-activity.md)
+- [State Machine](./diagrams/05-state.md)
+- [Swimlane](./diagrams/06-swimlane.md)
+- [Deployment](./diagrams/07-deployment.md)
+- [Entity-Relationship](./diagrams/08-er.md)
+
+---
+
+## Journals
+
+Weekly development journals for each team member (W1–W5):
+
+- [Tarun's Journal](./journals/1024030177-tarun/index.md)
+- [Parth's Journal](./journals/1024030178-parth/index.md)
+- [Adhiraj's Journal](./journals/1024031077-adhiraj/index.md)
+
+---
+
+## Reports
+
+| Document | Source | PDF |
+|---|---|---|
+| Project Proposal | [main.tex](./project-proposal/main.tex) | [main.pdf](./project-proposal/main.pdf) |
+| Prototype Stage Report | [main.tex](./project-report-prototype-stage/main.tex) | [main.pdf](./project-report-prototype-stage/main.pdf) |
+
+---
 
 ## Docs
 
-As of now, the `docs` is just an organised collection
-of markdown (`md`) files.  But the build procedure is
-using [`mkdocs`](https://google.com/search?q=mkdocs)
-backend.  As a result, any commit into the `master`
-branch of github repository would result in CI/CD based
-build and deployment of the documentation including the
-journals.
+Documentation is built with [MkDocs](https://www.mkdocs.org/) and auto-deployed on every push to `master` via GitHub Actions.
 
-For a local DEV-version of the docs for viewing and
-testing, install the local env and issue the following
-command:
-
-``` shell
-make docs
-```
-
-### Local `env` for `docs`
-
-``` shell
-
+```shell
+make docs       # local dev server
 ```
