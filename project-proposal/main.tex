@@ -1,0 +1,225 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=0.85in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+% -----------------------------------------------------
+% bvraghav-tiet-ucs503p-article.sty
+% -----------------------------------------------------
+
+% Variable: Lab Instructor
+\makeatletter \newcommand{\BvrSetLabInstructor}[1]{%
+  \gdef\Bvr@LabInstructor{#1}}
+% default
+\newcommand{\Bvr@LabInstructor}{Dr. Paramveer Sidhu}
+% public accessor
+\newcommand{\BvrLabInstructorValue}{\Bvr@LabInstructor}
+\makeatother
+
+% Add subtitle
+\usepackage{titling}
+% -- Set title bold
+\pretitle{\begin{center}\bfseries\fontsize{18bp}{18bp}\selectfont}
+\makeatletter
+\newcommand{\BvrSubtitle}[1]{%
+  \posttitle{%
+    \par\end{center}
+    \begin{center}\large#1\end{center}
+    \vskip 0.5em}%
+}
+\makeatother
+
+% Hints in the section title(s)
+\newcommand{\BvrHint}[1]{%
+  {\normalfont\normalsize\itshape\hfill #1}}
+
+% Tighten list spacing to keep the proposal compact
+\setlist{itemsep=0pt, topsep=2pt, parsep=0pt}
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{8pt}{4pt}
+\titlespacing*{\subsection}{0pt}{6pt}{3pt}
+
+% -----------------------------------------------------
+
+\title{SyncDrive}
+
+\BvrSetLabInstructor{Dr. Paramveer Sidhu}
+
+\BvrSubtitle{%
+  Signal-Aware Navigation and Speed Optimization System \\
+  Project Proposal for UCS503P  \\
+  Submitted to: \BvrLabInstructorValue \\ \bfseries
+  Thapar Institute of Engineering and Technology% 
+}
+
+\author{
+  Tarun Mahindra (1024030177)
+  \and 
+  Parth Puri (1024030178)
+  \and
+  Adhiraj Kapur (1024031077)
+}
+
+\date{11 August 2026}
+
+\begin{document}
+\maketitle
+
+\section{Higher-order goal%
+  \BvrHint{\ldots secondary framing}}
+SyncDrive aims to reduce avoidable time and fuel loss in
+everyday urban commuting by making drivers aware of how
+their speed interacts with upcoming traffic signals. The
+engineering objective is to translate \emph{signal-aware
+  speed guidance} into a measurable, deployable software
+solution usable through a navigation application.
+
+\section{Time-to-value %
+\BvrHint{\ldots primary heuristic}}
+\begin{itemize}[leftmargin=0.7cm]
+    \item Deliver meaningful increments quickly by prototyping the core route-and-speed-recommendation workflow on a single simulated corridor within a short iteration window.
+    \item Prioritize fast feedback over perfection using weekly iterations and early CI-backed automation.
+    \item Success in iteration one is a working speed recommendation for a route with simulated signals, improved thereafter based on testing.
+\end{itemize}
+
+\section{Problem Statement}
+Navigation apps such as Google Maps select routes using
+distance, travel time, and traffic, but do not account for
+how a driver's chosen speed interacts with signal timing.
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{Signal-blind routing:} a short, lightly congested route can still force repeated stops if driven at the speed limit.
+    \item \textbf{Avoidable stop-and-go driving:} repeated braking and waiting increases journey time even in light traffic.
+    \item \textbf{No dynamic speed guidance:} apps advise \emph{which road} to take, not \emph{how fast} to drive on it.
+    \item \textbf{No driver-level emergency coordination:} nearby drivers get no software guidance to help clear a path for an ambulance.
+\end{itemize}
+\textbf{Why this matters now:} in corridors with closely spaced signals, reducing unnecessary stopping can measurably cut journey time without changing road infrastructure.
+
+\section{Proposed Solution %
+\BvrHint{\ldots Software Proposition}}
+\subsection{Overview}
+Build a \textbf{web/mobile-based} navigation system with:
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{Driver interface:} source/destination entry; route view with upcoming signals.
+    \item \textbf{Signal timing store:} simulated/map-sourced signal location, cycle duration, expected green/red intervals.
+    \item \textbf{Speed optimization engine:} computes a dynamically updated, legal recommended speed to increase the likelihood of green-phase arrivals.
+    \item \textbf{Recommendation display:} e.g., ``Maintain 42 km/h for the next 800 m,'' always capped at the speed limit.
+    \item \textbf{Emergency coordination module:} adjusts nearby drivers' recommendations when a registered emergency vehicle approaches.
+\end{itemize}
+
+\subsection{Core workflow}
+\begin{enumerate}[leftmargin=0.7cm]
+    \item Driver enters source/destination; a route is selected using distance, time, and traffic.
+    \item System identifies signals along the route and retrieves simulated/known timing.
+    \item Engine estimates arrival time per candidate speed and selects the legal speed minimizing expected waiting time across the route.
+    \item Recommendation recalculates as position, traffic, or emergency conditions change.
+\end{enumerate}
+
+\subsection{Operational constraints}
+\begin{itemize}[leftmargin=0.7cm]
+    \item Recommended speed never exceeds the legal limit -- the system chooses \emph{which} legal speed, not whether to speed.
+    \item No guarantee of a green signal at every intersection; guidance is expressed as increased probability and reduced expected waiting time.
+    \item Real-time municipal signal-controller access is not assumed; simulated/public data is used and this limitation is stated explicitly.
+\end{itemize}
+
+\section{Solution Approach %
+\BvrHint{\ldots Engineering focus}}
+This is an engineering project, so we focus on a realistic, implementable design rather than novel traffic-prediction research.
+
+\subsection{Speed optimization logic %
+\BvrHint{\ldots non-research}}
+For each upcoming signal:
+\begin{itemize}[leftmargin=0.7cm]
+    \item Determine distance from the current position to the signal.
+    \item Retrieve the signal's current/predicted phase and cycle timing.
+    \item Estimate arrival time for candidate legal speeds ($\text{arrival time} = \text{distance}/\text{speed}$).
+    \item Estimate likely phase (green/red) and expected waiting time per candidate.
+    \item Select the legal speed minimizing a weighted cost over travel time, waiting time, and stop count, considering downstream signals.
+    \item Recompute whenever position, traffic, or signal data changes materially.
+\end{itemize}
+This is a prediction heuristic, not a guarantee of signal outcomes or a claim of novel research.
+
+\subsection{System architecture %
+\BvrHint{\ldots web-based solution}}
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{Frontend:} map, route, signal markers, recommended speed, ETA, emergency notifications.
+    \item \textbf{Backend API:} route requests, signal-timing queries, optimization calculations, emergency events.
+    \item \textbf{Route/traffic services:} a mapping/routing API (e.g., OpenStreetMap-based, Mapbox) for road network, route, distance, coordinates; signal timing is simulated separately since such APIs rarely expose real-time signal-phase data.
+    \item \textbf{Database:} routes, simulated signal timing, requests, emergency events.
+\end{itemize}
+
+\subsection{CI/CD and fast delivery enabler}
+\begin{itemize}[leftmargin=0.7cm]
+    \item Build and test automatically on every change, including the optimization logic.
+    \item Produce repeatable deployment artifacts to staging.
+    \item Enable safe, frequent releases of incremental features (multi-signal optimization, emergency coordination).
+\end{itemize}
+
+\section{Evaluation Criterion %
+\BvrHint{\ldots measurable and attributable}}
+Success is measured by comparing the signal-aware strategy against a conventional constant-speed-limit strategy on identical simulated routes.
+
+\subsection{Primary evaluation metric}
+\textbf{Total journey time:} time to traverse a test route source-to-destination. Objective: reduce total journey time relative to the conventional strategy, measured experimentally. Attribution: simulated start/end timestamps under identical test conditions.
+
+\subsection{Secondary evaluation metrics}
+\begin{itemize}[leftmargin=0.7cm]
+    \item Average signal waiting time and number of complete stops per route.
+    \item Percentage of signals crossed during green phases.
+    \item Average speed and travel distance across strategies.
+    \item Emergency-vehicle travel-time improvement in the simulated coordination scenario.
+\end{itemize}
+No numerical improvement is assumed in advance; the prototype measures and compares these metrics experimentally.
+
+\subsection{Pilot validation plan %
+\BvrHint{\ldots high-level}}
+\begin{itemize}[leftmargin=0.7cm]
+    \item Define 3--5 test routes of varying length and signal density using simulated timing data.
+    \item Run each route under both strategies and log all metrics.
+    \item Gather informal driver feedback (5--10 participants) on clarity and usefulness.
+\end{itemize}
+
+\section{Scalability %
+\BvrHint{\ldots with foresight}}
+\begin{enumerate}[leftmargin=0.7cm]
+    \item \textbf{Scalable (theoretically):} decoupled frontend/backend/optimization engine; indexed queries for signals/routes; stateless API design; caching of frequent route/signal data.
+    \item \textbf{Operationally deployable (practically):} managed database; containerized/platform-hosted deployment; CI/CD pipeline; modular services so signal, route, and emergency data scale independently.
+\end{enumerate}
+
+\section{Engine availability heuristic}
+Mature tooling is available for this project: a web/mobile frontend framework; a backend REST framework; a mapping/routing API (road network, route, distance, coordinates -- not assumed to expose real-time signal phase); geolocation services; a managed database; a simulated signal-timing dataset built for the prototype; a test framework; and a CI/CD runner. We rely on these mature components to focus on optimization-logic correctness and workflow, not on inventing infrastructure or assuming access to real municipal signal controllers.
+
+\section{Project scope and deliverables %
+\BvrHint{\ldots iteration-friendly}}
+\subsection{Initial deliverable %
+\BvrHint{\ldots first iteration}}
+\begin{itemize}[leftmargin=0.7cm]
+    \item Source/destination input and basic map interface; route generation via a routing API.
+    \item Simulated traffic-signal dataset for a test corridor.
+    \item Basic arrival-time calculation and speed recommendation for a single upcoming signal, capped at the speed limit.
+    \item Basic backend API with unit tests for the optimization logic; CI build + tests + linting.
+\end{itemize}
+
+\subsection{Subsequent deliverables}
+\begin{itemize}[leftmargin=0.7cm]
+    \item Multi-signal optimization considering downstream signals.
+    \item Dynamic recalculation as the vehicle moves or conditions change.
+    \item Emergency-vehicle coordination module (simulated ambulance location, adjusted nearby recommendations).
+    \item Dashboard comparing signal-aware vs.\ conventional strategy; performance/metric logging; scalability improvements (caching, indexing).
+\end{itemize}
+
+\section{Risks and mitigations}
+\begin{itemize}[leftmargin=0.7cm]
+    \item \textbf{Signal data availability:} real-time phase data is rarely public. \emph{Mitigation:} simulated/controlled data, limitation stated clearly.
+    \item \textbf{Prediction uncertainty:} actual timing may differ from predicted. \emph{Mitigation:} express expected/estimated waiting time, not a guarantee; recalculate continuously.
+    \item \textbf{Mapping API limitations:} usage limits or missing traffic data. \emph{Mitigation:} fall back to open/simulated signal data.
+    \item \textbf{Safety:} must never encourage exceeding the speed limit. \emph{Mitigation:} engine constrains all speeds to the configured legal limit.
+    \item \textbf{Emergency-coordination realism:} real infrastructure/control is inaccessible. \emph{Mitigation:} simulated emergency-vehicle environment, framed as future-integrable rather than working today.
+    \item \textbf{Evaluation limitations:} a small prototype cannot reproduce city-scale traffic. \emph{Mitigation:} controlled simulations with clearly defined test scenarios.
+\end{itemize}
+
+\section{Summary}
+SyncDrive proposes a deployable navigation system that recommends a legal driving speed to reduce unnecessary signal stops, alongside conventional route selection. It emphasizes time-to-value through rapid iterations, CI/CD-backed releases, and measurable evaluation (primarily total journey time, plus waiting-time and stop-count metrics), while remaining realistic about data limitations and explicitly avoiding claims of guaranteed green signals, guaranteed ambulance priority, or control of real traffic infrastructure.
+
+\end{document}
