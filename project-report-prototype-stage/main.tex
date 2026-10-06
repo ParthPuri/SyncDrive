@@ -1,0 +1,363 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=0.85in]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{titling}
+\usepackage{titlesec}
+
+% ── Style macros (mirrors proposal) ──────────────────────────
+\makeatletter
+\newcommand{\BvrSetLabInstructor}[1]{\gdef\Bvr@LabInstructor{#1}}
+\newcommand{\Bvr@LabInstructor}{Dr. Paramveer Sidhu}
+\newcommand{\BvrLabInstructorValue}{\Bvr@LabInstructor}
+\newcommand{\BvrSubtitle}[1]{%
+  \posttitle{\par\end{center}\begin{center}\large#1\end{center}\vskip 0.5em}}
+\makeatother
+\pretitle{\begin{center}\bfseries\fontsize{18bp}{18bp}\selectfont}
+\newcommand{\BvrHint}[1]{{\normalfont\normalsize\itshape\hfill #1}}
+\setlist{itemsep=0pt, topsep=2pt, parsep=0pt}
+\titlespacing*{\section}{0pt}{8pt}{4pt}
+\titlespacing*{\subsection}{0pt}{6pt}{3pt}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!8},
+  rulecolor=\color{gray!40},
+  xleftmargin=6pt, xrightmargin=6pt,
+  aboveskip=6pt, belowskip=4pt
+}
+
+% ── Document metadata ─────────────────────────────────────────
+\title{SyncDrive}
+\BvrSetLabInstructor{Dr. Paramveer Sidhu}
+\BvrSubtitle{%
+  Signal-Aware Navigation and Speed Optimization System \\
+  Project Report --- Prototype Stage \\
+  Submitted to: \BvrLabInstructorValue \\ \bfseries
+  Thapar Institute of Engineering and Technology
+}
+\author{
+  Tarun Mahindra (1024030177)
+  \and
+  Parth Puri (1024030178)
+  \and
+  Adhiraj Kapur (1024031077)
+}
+\date{October 2026}
+
+% ─────────────────────────────────────────────────────────────
+\begin{document}
+\maketitle
+
+% ─────────────────────────────────────────────────────────────
+\section{Executive Summary}
+
+This report documents the prototype stage of SyncDrive, a
+signal-aware navigation system that recommends a departure time
+and a steady driving speed so that a driver traverses a
+pre-defined urban corridor while hitting the maximum possible
+traffic signals on green, thereby eliminating avoidable
+stop-and-wait time.
+
+The working prototype covers seven locations in Chandigarh
+(Sector 17, 22, 35, 43, PGI Hospital, Elante Mall, Tribune
+Chowk), models sixteen traffic signals with configurable
+cycle timings, and provides 42 directed routes across all
+location pairs. The interface is a single-file web application
+requiring no installation, no API key, and no backend server.
+
+The prototype validates the core hypothesis:
+
+\begin{quote}
+\itshape
+A driver travelling at a lower steady speed with zero red-light
+stops arrives faster than a driver rushing at maximum speed who
+accumulates waiting time at signals.
+\end{quote}
+
+\noindent A worked example (Sector 17 $\to$ Sector 22, arrival 09:00):
+
+\begin{center}
+\begin{tabular}{lcccr}
+\toprule
+Strategy & Speed & Drive time & Wait time & \textbf{Total} \\
+\midrule
+Normal GPS  & 50 km/h & 1.7 min & 2.1 min & \textbf{3.8 min} \\
+SyncDrive   & 32 km/h & 2.6 min & 0 min   & \textbf{2.6 min} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ─────────────────────────────────────────────────────────────
+\section{Prototype Scope}
+
+\subsection{What was built}
+
+\begin{itemize}[leftmargin=0.7cm]
+  \item \textbf{Interactive map interface} --- dark-theme Leaflet.js map
+    centred on Chandigarh using Stadia Maps
+    \texttt{alidade\_smooth\_dark} tiles (free, no API key).
+  \item \textbf{7 named locations} as origin/destination options.
+  \item \textbf{16 simulated traffic signals} with configurable cycle
+    duration, green-start offset, and green duration.
+  \item \textbf{42 bidirectional routes} between all location pairs,
+    each with signal assignments, polyline coordinates, and
+    turn-by-turn steps.
+  \item \textbf{Green wave optimizer} --- searches over 9 candidate speeds
+    (25--45 km/h) and up to 25 minutes of departure offsets in
+    15-second steps to find the combination that minimises total
+    journey time (drive time + signal wait time).
+  \item \textbf{Normal GPS simulator} --- models a driver using the same
+    departure time but at 50 km/h, accumulating real wait time at
+    each red signal for a direct apples-to-apples comparison.
+  \item \textbf{Comparison panel} --- side-by-side total time, visual
+    time-breakdown bars (driving vs.\ waiting), speed, red lights
+    hit, time lost, and fuel efficiency comparison.
+  \item \textbf{Signal timeline} --- per-signal arrival time and
+    green/red status for the recommended SyncDrive journey.
+  \item \textbf{Speed HUD} --- map overlay showing recommended speed
+    with contextual advice.
+\end{itemize}
+
+\subsection{What was not built (deferred)}
+
+\begin{itemize}[leftmargin=0.7cm]
+  \item Real-time GPS tracking of the driver's position.
+  \item Live or municipal signal phase data.
+  \item Animated car movement along the route.
+  \item Backend API or database.
+  \item Emergency vehicle coordination module.
+  \item Mobile native application.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────
+\section{System Architecture}
+
+The prototype is deliberately minimal: a single HTML file with
+embedded CSS and JavaScript, no build step, no server, and no
+external API calls beyond map tile fetching.
+
+\begin{verbatim}
+project-root/
+├── code/
+│   ├── index.html      ← entire application (map + UI + logic)
+│   └── CONTEXT.md      ← handoff documentation
+├── journals/
+│   ├── 1024030177-tarun/   (5 weekly entries)
+│   ├── 1024030178-parth/   (5 weekly entries)
+│   └── 1024031077-adhiraj/ (5 weekly entries)
+└── project-report-prototype-stage/
+    ├── main.tex
+    └── main.pdf
+\end{verbatim}
+
+\subsection{Data layer}
+
+All data is hardcoded in JavaScript objects within
+\texttt{index.html}:
+
+\begin{itemize}[leftmargin=0.7cm]
+  \item \textbf{\texttt{PLACES}} --- 7 locations with name, latitude,
+    longitude.
+  \item \textbf{\texttt{SIGNALS}} --- 16 signal objects, each with
+    \texttt{id}, \texttt{name}, \texttt{lat/lng}, \texttt{cycle}
+    (seconds), \texttt{gS} (greenStart offset), \texttt{gD} (green
+    duration).
+  \item \textbf{\texttt{ROUTES}} --- 42 directed route objects, each
+    with \texttt{sigs[]} (signal ids), \texttt{km} (distance),
+    \texttt{pts[][]} (Leaflet polyline coordinates), \texttt{steps[]}
+    (turn-by-turn instruction strings).
+\end{itemize}
+
+\subsection{Algorithm layer}
+
+Two functions implement the core logic:
+
+\paragraph{\texttt{optimise(route, km, arrSec)}}
+Searches over speeds $\{25, 28, 30, 32, 35, 38, 40, 42, 45\}$ km/h
+and departure offsets $0, 15, 30, \ldots, 1500$ seconds before the
+latest feasible departure. For each candidate $(s, \delta)$:
+
+\begin{enumerate}[leftmargin=0.7cm]
+  \item Compute $t_\text{drive} = (d/s) \times 3600$.
+  \item Set departure $t_\text{dep} = t_\text{arr} - t_\text{drive} - \delta$.
+  \item Simulate each signal in route order, accumulating elapsed wait:
+\end{enumerate}
+
+\begin{lstlisting}[language=Python]
+phase = (t_dep + t_to_signal + elapsed) % cycle
+if green(signal, phase):
+    greens++
+else:
+    wait = greenStart - phase  if phase < greenStart
+           else  cycle - phase + greenStart
+    elapsed += wait
+    totalWait += wait
+\end{lstlisting}
+
+\begin{enumerate}[leftmargin=0.7cm, start=4]
+  \item Score $= (t_\text{drive} + t_\text{wait}) - 0.5 \times \text{greens}$.
+    Lower is better.
+\end{enumerate}
+
+\paragraph{\texttt{simNG(route, km, gwDep)}}
+Uses the \emph{same departure time} as the SyncDrive result but
+drives at 50 km/h, hitting signals at uncontrolled phases and
+accumulating real wait times.
+
+\subsection{UI layer}
+
+Three-pane layout inspired by Apple Maps:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Pane & Width & Content \\
+\midrule
+Nav rail  & 200 px & Logo, Search, Guides, Directions \\
+Directions panel & 320 px & Inputs, results, comparison, timeline \\
+Map & \textit{flex:1} & Leaflet map, route, signals, speed HUD \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Colour discipline: \texttt{\#0a84ff} (Apple blue) for all
+interactive elements; \texttt{\#30d158} (green) reserved
+exclusively for ``signal is green'' semantic indicators.
+
+% ─────────────────────────────────────────────────────────────
+\section{Results and Evaluation}
+
+\subsection{Hypothesis validation}
+
+The prototype successfully demonstrates the core claim on all 42
+routes. Representative results at 09:00 arrival target:
+
+\begin{center}
+\begin{tabular}{lrrrrrr}
+\toprule
+Route & km & NG speed & NG total & GW speed & GW total & Saved \\
+\midrule
+Sec 17 $\to$ Sec 22  & 1.4 & 50 & 3.8 m & 32 & 2.6 m & 1.2 m \\
+Sec 22 $\to$ Sec 35  & 2.2 & 50 & 6.0 m & 35 & 4.5 m & 1.5 m \\
+Sec 17 $\to$ PGI     & 3.2 & 50 & 5.8 m & 38 & 5.0 m & 0.8 m \\
+Sec 43 $\to$ Elante  & 2.0 & 50 & 4.1 m & 30 & 4.0 m & 0.1 m \\
+Sec 17 $\to$ Tribune & 5.1 & 50 & 8.2 m & 40 & 7.7 m & 0.5 m \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent \textit{GW = GreenWave/SyncDrive; NG = Normal GPS simulation.
+All figures are approximate, based on simulated signal timings.}
+
+\subsection{Key observations}
+
+\begin{itemize}[leftmargin=0.7cm]
+  \item On shorter routes (1--2 km) with 3--4 signals, time savings
+    are most pronounced because the ratio of wait time to drive time
+    is highest.
+  \item On longer routes (5+ km), the drive-time penalty of lower speed
+    partially offsets the wait-time savings, but SyncDrive still
+    wins or ties in all tested cases.
+  \item The \texttt{elapsed} accumulation in the simulation is critical:
+    missing it causes incorrect green counts because each red stop
+    shifts all subsequent signal arrival times.
+  \item The fair comparison (same departure time for both strategies)
+    was a key design decision; using different departure times
+    artificially inflated the Normal GPS time.
+\end{itemize}
+
+\subsection{Limitations}
+
+\begin{itemize}[leftmargin=0.7cm]
+  \item Signal timings are simulated, not sourced from Chandigarh
+    municipal data. Real timings will change results quantitatively
+    but not invalidate the approach.
+  \item The prototype assumes uniform signal spacing along each route.
+    Actual spacing affects arrival phase calculations.
+  \item No real vehicle position tracking --- the system recommends
+    a fixed departure time and speed, not continuous recalculation.
+  \item No user study has been conducted; the comparison figures are
+    computational, not observational.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────
+\section{Implementation Notes}
+
+\subsection{Technology decisions}
+
+\begin{itemize}[leftmargin=0.7cm]
+  \item \textbf{Leaflet.js 1.9.4} over Google Maps API --- avoids API
+    key requirement and billing.
+  \item \textbf{Stadia alidade\_smooth\_dark} tiles over Carto Voyager
+    --- Carto's raster endpoint now requires an API key; Stadia's
+    free tier does not.
+  \item \textbf{Single HTML file} over a framework build --- eliminates
+    the need for Node.js, npm, or a local dev server. Opens directly
+    in any browser.
+  \item \textbf{Inter font} via Google Fonts --- matches Apple
+    system-font aesthetics without requiring SF Pro licensing.
+\end{itemize}
+
+\subsection{Bugs fixed during prototype development}
+
+\begin{enumerate}[leftmargin=0.7cm]
+  \item \textbf{Carto tile watermark} --- tile provider switched to
+    Stadia (Week 2 journal).
+  \item \textbf{Wrong optimization objective} --- original scorer
+    maximised green count, ignoring total time; rewrote to minimise
+    $t_\text{drive} + t_\text{wait}$ (Week 3 journal).
+  \item \textbf{Missing elapsed accumulation} --- red stops were not
+    propagating to downstream signal arrival times; fixed by passing
+    \texttt{elapsed} through the signal simulation loop (Week 3
+    journal).
+  \item \textbf{Unfair comparison baseline} --- Normal GPS sim was
+    using arrival time as departure reference, giving it extra time;
+    fixed to use same departure as SyncDrive (Week 5 journal).
+  \item \textbf{Missing routes} --- only 20 of 42 directed pairs
+    defined; systematically generated all remaining 22 pairs (Week 5
+    journal).
+\end{enumerate}
+
+% ─────────────────────────────────────────────────────────────
+\section{Next Steps}
+
+\begin{enumerate}[leftmargin=0.7cm]
+  \item \textbf{Live position tracking} --- use browser Geolocation API
+    to update speed recommendation continuously as the driver moves.
+  \item \textbf{Countdown to departure} --- ``Leave in X minutes'' live
+    timer based on current system time.
+  \item \textbf{Animated route playback} --- move a marker along the
+    route at the recommended speed to visualise the green wave.
+  \item \textbf{Real signal data} --- explore OpenStreetMap
+    \texttt{highway=traffic\_signals} tags and
+    \texttt{cycle\_time:*} attributes as a richer data source.
+  \item \textbf{Peak hour profiles} --- different signal cycle lengths
+    for 8--10 am and 5--8 pm rush hours.
+  \item \textbf{OSRM routing integration} --- replace hardcoded
+    polylines with actual road-following routes from the OSRM
+    open-source routing engine.
+  \item \textbf{Emergency vehicle coordination} --- phase 2 feature
+    from the proposal: adjust nearby drivers' recommendations when
+    an emergency vehicle is detected on the same corridor.
+\end{enumerate}
+
+% ─────────────────────────────────────────────────────────────
+\section{Repository}
+
+\begin{itemize}[leftmargin=0.7cm]
+  \item \textbf{Source code:}
+    \url{https://github.com/ParthPuri/SyncDrive/tree/master/code}
+  \item \textbf{Journals:}
+    \url{https://github.com/ParthPuri/SyncDrive/tree/master/journals}
+  \item \textbf{Prototype (live file):}
+    \texttt{code/index.html} --- open in any browser, no server needed
+\end{itemize}
+
+\end{document}
