@@ -845,8 +845,8 @@ const ROUTES = {
 //  MAP — Stadia dark tiles (free, no API key)
 // ═══════════════════════════════════════════════════════
 const map = L.map('map',{zoomControl:true}).setView([30.7280,76.7820],14);
-// CartoDB Dark Matter with API key
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=cb1_4bbt_1_7bb3c8fcb8b845bb4465f53b',{
+// CartoDB Dark Matter — Apple Maps dark style
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?apikey=cb1_4bbt_1_7bb3c8fcb8b845bb4465f53b',{
   attribution:'© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
   subdomains:'abcd',
   maxZoom:20,
