@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SyncDrive</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --nav-w:200px;
+  --panel-w:320px;
+  --bg:#1c1c1e;
+  --bg2:#2c2c2e;
+  --bg3:#3a3a3c;
+  --bg4:#48484a;
+  --border:rgba(255,255,255,.08);
+  --border2:rgba(255,255,255,.12);
+  --text:#f5f5f7;
+  --sub:#aeaeb2;
+  --muted:#636366;
+  --accent:#0a84ff;   /* Apple blue — primary accent */
+  --green:#30d158;    /* used ONLY for "signal is green" */
+  --red:#ff453a;
+  --amber:#ffd60a;
+  --divider:rgba(255,255,255,.06);
+}
+html,body{height:100%;overflow:hidden;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;
+  background:#000;color:var(--text);-webkit-font-smoothing:antialiased}
+
+/* ── App shell ───────────────────────────────────────── */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ── LEFT NAV (narrow — like Apple Maps sidebar) ──────── */
+.nav{
+  width:var(--nav-w);flex-shrink:0;
+  background:rgba(28,28,30,.98);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  padding:16px 0 20px;
+  z-index:200;
+}
+.nav-logo{
+  display:flex;align-items:center;gap:9px;
+  padding:0 16px 18px;border-bottom:1px solid var(--divider);
+  margin-bottom:8px;
+}
+.nav-logo-icon{
+  width:30px;height:30px;border-radius:8px;
+  background:#fff;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+/* SyncDrive logo — stylised S + wave */
+.nav-logo-icon svg{width:18px;height:18px}
+.nav-logo-name{
+  font-size:.88rem;font-weight:800;letter-spacing:-.4px;color:var(--text);
+  line-height:1.1;
+}
+.nav-logo-name small{
+  display:block;font-size:.56rem;font-weight:500;
+  color:var(--muted);letter-spacing:.6px;text-transform:uppercase;margin-top:1px;
+}
+
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 16px;cursor:pointer;
+  font-size:.82rem;font-weight:500;color:var(--sub);
+  border-radius:0;transition:background .1s;
+  border-left:2px solid transparent;
+}
+.nav-item:hover{background:rgba(255,255,255,.05)}
+.nav-item.active{color:var(--text);border-left-color:var(--accent)}
+.nav-item .ni-icon{
+  width:26px;height:26px;border-radius:7px;
+  background:var(--bg2);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.nav-item.active .ni-icon{background:var(--accent)}
+.nav-item svg{width:12px;height:12px}
+
+.nav-bottom{margin-top:auto;padding:0 16px}
+.nav-bottom-tip{
+  font-size:.62rem;color:var(--muted);line-height:1.5;
+  background:var(--bg2);border-radius:8px;padding:8px 10px;
+}
+
+/* ── PANEL (directions pane — like Apple Maps Directions) */
+.panel{
+  width:var(--panel-w);flex-shrink:0;
+  background:rgba(28,28,30,.98);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+  z-index:100;
+}
+.panel-header{
+  padding:16px 16px 12px;flex-shrink:0;
+  border-bottom:1px solid var(--divider);
+}
+.panel-title{font-size:1.1rem;font-weight:700;letter-spacing:-.3px}
+
+/* mode tabs — car / walk */
+.mode-tabs{
+  display:flex;gap:0;background:var(--bg2);
+  border-radius:10px;padding:2px;margin:10px 0 0;
+}
+.mode-tab{
+  flex:1;padding:6px 8px;border-radius:8px;border:none;
+  background:transparent;color:var(--sub);font-size:.78rem;
+  font-weight:600;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;gap:5px;transition:background .15s,color .15s;
+  font-family:inherit;
+}
+.mode-tab.active{background:var(--accent);color:#fff}
+.mode-tab svg{width:13px;height:13px}
+
+/* ── Input group ─────────────────────────────────────── */
+.input-group{
+  background:var(--bg2);border-radius:12px;
+  margin:12px 16px 0;overflow:hidden;
+  border:1px solid var(--border2);
+}
+.input-row{
+  display:flex;align-items:center;min-height:42px;
+  border-bottom:1px solid var(--divider);
+}
+.input-row:last-child{border-bottom:none}
+.input-dot{
+  width:36px;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;
+}
+.input-dot svg{width:16px;height:16px}
+.input-field{
+  flex:1;background:transparent;border:none;outline:none;
+  color:var(--text);font-size:.84rem;font-family:inherit;
+  padding:10px 8px 10px 0;
+}
+.input-field::placeholder{color:var(--muted)}
+select.input-field{appearance:none;cursor:pointer}
+select.input-field option{background:#2c2c2e}
+.input-handle{
+  width:36px;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;color:var(--bg4);
+}
+.input-handle svg{width:12px;height:12px}
+
+.arrival-row{
+  display:flex;align-items:center;gap:8px;
+  margin:10px 16px 0;
+}
+.chip{
+  display:flex;align-items:center;gap:5px;
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:20px;padding:5px 12px;
+  font-size:.76rem;font-weight:600;color:var(--text);cursor:pointer;
+}
+.chip svg{width:10px;height:10px;opacity:.6}
+input[type="time"].chip-time{
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:20px;padding:5px 12px;
+  font-size:.76rem;font-weight:600;color:var(--text);
+  font-family:inherit;outline:none;
+  appearance:none;cursor:pointer;flex:1;
+}
+input[type="time"].chip-time::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.4;cursor:pointer}
+
+.btn-sync{
+  margin:10px 16px 14px;padding:11px;
+  background:var(--accent);color:#fff;
+  font-weight:700;font-size:.84rem;font-family:inherit;
+  border:none;border-radius:12px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  transition:opacity .15s,transform .1s;letter-spacing:.1px;
+}
+.btn-sync:hover{opacity:.9}
+.btn-sync:active{transform:scale(.98)}
+.btn-sync svg{width:13px;height:13px}
+
+/* ── Scrollable results body ─────────────────────────── */
+.panel-body{
+  flex:1;overflow-y:auto;padding-bottom:20px;
+}
+.panel-body::-webkit-scrollbar{width:3px}
+.panel-body::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px}
+
+/* ── Section header inside panel ────────────────────── */
+.sec-hd{
+  font-size:.62rem;font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;color:var(--muted);
+  padding:14px 16px 6px;
+}
+
+/* ── List group (Apple-style grouped rows) ────────────── */
+.list-group{
+  background:var(--bg2);border-radius:12px;
+  margin:0 10px 8px;overflow:hidden;
+  border:1px solid var(--border);
+}
+.list-row{
+  display:flex;align-items:center;
+  padding:10px 14px;border-bottom:1px solid var(--divider);
+  min-height:44px;
+}
+.list-row:last-child{border-bottom:none}
+.lr-label{font-size:.78rem;color:var(--sub);flex:1}
+.lr-val{font-size:.84rem;font-weight:600;color:var(--text);text-align:right}
+.lr-val.accent{color:var(--accent)}
+.lr-val.green{color:var(--green)}
+.lr-val.red{color:var(--red)}
+.lr-val.amber{color:var(--amber)}
+.lr-sub{font-size:.65rem;color:var(--muted);text-align:right;margin-top:1px}
+
+/* ── Leave-at hero (minimal, not green box) ────────────── */
+.leave-hero{
+  background:var(--bg2);border-radius:12px;
+  margin:0 10px 8px;
+  border:1px solid var(--border);
+  padding:14px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.lh-left .lh-label{font-size:.62rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.lh-left .lh-time{font-size:2rem;font-weight:800;letter-spacing:-.5px;color:var(--text);line-height:1.1;margin-top:2px}
+.lh-left .lh-sub{font-size:.7rem;color:var(--sub);margin-top:4px}
+.lh-right{
+  width:48px;height:48px;background:var(--accent);border-radius:14px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.lh-right svg{width:22px;height:22px;stroke:#fff}
+
+/* ── Speed card ─────────────────────────────────────── */
+.speed-card{
+  background:var(--bg2);border-radius:12px;
+  margin:0 10px 8px;
+  border:1px solid var(--border);
+  padding:14px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sc-left .sc-label{font-size:.62rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.sc-left .sc-val{font-size:1.8rem;font-weight:800;letter-spacing:-.5px;color:var(--text);line-height:1.1;margin-top:2px}
+.sc-left .sc-sub{font-size:.7rem;color:var(--sub);margin-top:4px}
+.sc-right{text-align:right}
+.sc-badge{
+  display:inline-block;padding:4px 10px;border-radius:8px;
+  font-size:.72rem;font-weight:700;letter-spacing:.3px;
+}
+.sc-badge.slower{background:rgba(255,159,10,.15);color:#ff9f0a;border:1px solid rgba(255,159,10,.3)}
+.sc-badge.steady{background:rgba(10,132,255,.15);color:var(--accent);border:1px solid rgba(10,132,255,.3)}
+
+/* ── Comparison — "Why It's Faster" ────────────────────── */
+.cmp-split{
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;
+  margin:0 10px 8px;
+}
+.cmp-half{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:12px;padding:12px;text-align:center;
+}
+.ch-label{font-size:.6rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.ch-time{font-size:1.5rem;font-weight:800;line-height:1;color:var(--text)}
+.ch-sub{font-size:.62rem;color:var(--muted);margin-top:3px}
+/* saved badge on the gw side */
+.ch-saved{
+  display:inline-block;margin-top:6px;
+  background:rgba(48,209,88,.18);color:var(--green);
+  border:1px solid rgba(48,209,88,.3);
+  border-radius:6px;padding:2px 7px;font-size:.65rem;font-weight:700;
+}
+
+/* time bars */
+.tbar-section{background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin:0 10px 8px;padding:12px 14px}
+.tbar-title{font-size:.68rem;color:var(--sub);font-weight:600;margin-bottom:8px}
+.tbar-track{height:7px;border-radius:4px;background:var(--bg3);display:flex;overflow:hidden;margin-bottom:3px}
+.tbar-d{border-radius:4px 0 0 4px;transition:width .4s}
+.tbar-w{transition:width .4s}
+.tbar-meta{display:flex;justify-content:space-between;font-size:.63rem;color:var(--muted);margin-bottom:10px}
+.tbar-meta:last-child{margin-bottom:0}
+
+/* ── Signal list ─────────────────────────────────────── */
+.sig-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 14px;border-bottom:1px solid var(--divider);
+}
+.sig-row:last-child{border-bottom:none}
+.sig-indicator{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.sig-indicator.g{background:var(--green)}
+.sig-indicator.r{background:var(--red)}
+.sig-name{flex:1;font-size:.77rem;color:var(--text)}
+.sig-time{font-size:.68rem;color:var(--muted)}
+.sig-badge{
+  font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:5px;
+}
+.sig-badge.g{background:rgba(48,209,88,.15);color:var(--green)}
+.sig-badge.r{background:rgba(255,69,58,.15);color:var(--red)}
+
+/* ── Steps ───────────────────────────────────────────── */
+.step-row{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:9px 14px;border-bottom:1px solid var(--divider);
+}
+.step-row:last-child{border-bottom:none}
+.step-n{
+  width:18px;height:18px;background:var(--bg3);border-radius:50%;flex-shrink:0;
+  font-size:.6rem;font-weight:700;color:var(--sub);
+  display:flex;align-items:center;justify-content:center;margin-top:1px;
+}
+.step-txt{font-size:.76rem;color:var(--sub);line-height:1.45}
+
+/* ── Empty state ─────────────────────────────────────── */
+.empty-state{padding:30px 20px;text-align:center;color:var(--muted);font-size:.8rem;line-height:1.7}
+.empty-state .ei{font-size:1.8rem;margin-bottom:10px}
+
+/* ── Map ─────────────────────────────────────────────── */
+.map-wrap{flex:1;position:relative}
+#map{width:100%;height:100%}
+
+/* ── Speed HUD ───────────────────────────────────────── */
+#hud{
+  display:none;position:absolute;bottom:24px;right:20px;z-index:400;
+  background:rgba(28,28,30,.9);backdrop-filter:blur(20px);
+  border:1px solid var(--border2);border-radius:16px;
+  padding:14px 18px;text-align:center;min-width:110px;
+  box-shadow:0 8px 30px rgba(0,0,0,.6);
+}
+.hud-n{font-size:2.8rem;font-weight:800;color:var(--text);line-height:1;letter-spacing:-1px}
+.hud-u{font-size:.6rem;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+.hud-a{font-size:.65rem;color:var(--sub);margin-top:6px;line-height:1.3;max-width:90px}
+
+/* ── Toast ───────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(10px);
+  background:rgba(44,44,46,.95);backdrop-filter:blur(20px);
+  border:1px solid var(--border2);border-radius:22px;
+  padding:9px 20px;font-size:.78rem;font-weight:600;
+  z-index:9999;opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;white-space:nowrap;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Leaflet overrides */
+.leaflet-control-zoom a{
+  background:rgba(28,28,30,.9)!important;color:var(--text)!important;
+  border-color:var(--border2)!important;
+}
+.leaflet-bar{border-radius:10px!important;overflow:hidden;border:1px solid var(--border2)!important}
+.leaflet-control-attribution{background:rgba(0,0,0,.4)!important;color:var(--muted)!important;font-size:9px!important}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ LEFT NAV ══════════════════════════════════════════ -->
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="nav-logo-icon">
+      <!-- SyncDrive logo: stylised wave/road mark in white -->
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="18" cy="18" r="18" fill="#000"/>
+        <!-- road line -->
+        <path d="M6 26 Q12 10 18 18 Q24 26 30 10" stroke="#fff" stroke-width="2.8" stroke-linecap="round" fill="none"/>
+        <!-- sync arrows -->
+        <path d="M13 14 L10 17 L13 20" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M23 14 L26 17 L23 20" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+    </div>
+    <div class="nav-logo-name">
+      SyncDrive
+      <small>Signal Sync GPS</small>
+    </div>
+  </div>
+
+  <div class="nav-item">
+    <div class="ni-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </div>
+    Search
+  </div>
+  <div class="nav-item">
+    <div class="ni-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+        <path d="M4 6h16M4 12h16M4 18h7"/>
+      </svg>
+    </div>
+    Guides
+  </div>
+  <div class="nav-item active">
+    <div class="ni-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+      </svg>
+    </div>
+    Directions
+  </div>
+
+  <div class="nav-bottom">
+    <div class="nav-bottom-tip" id="clock-wrap">
+      <span id="clock" style="font-size:.72rem;font-weight:600;color:var(--sub)">--:--</span><br/>
+      <span style="font-size:.6rem;color:var(--muted)">Chandigarh, IN</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ DIRECTIONS PANEL ══════════════════════════════════ -->
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">Directions</div>
+
+    <!-- mode tabs -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="setMode(this,'car')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 17H3v-5l2-5h14l2 5v5h-2"/><path d="M5 17a2 2 0 104 0m6 0a2 2 0 104 0"/>
+        </svg>
+        Drive
+      </button>
+      <button class="mode-tab" onclick="setMode(this,'walk')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 4a1 1 0 110 2 1 1 0 010-2zM7 22l4-4 2 2 3-6m-4-4l-2 6 2 2-4 4"/>
+        </svg>
+        Walk
+      </button>
+      <button class="mode-tab" onclick="setMode(this,'bike')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/>
+          <path d="M15 6h2l2 5.5m-7 0L15 6M8 17.5L11 6h1l1.5 3H10"/>
+        </svg>
+        Cycle
+      </button>
+    </div>
+  </div>
+
+  <!-- Input group -->
+  <div class="input-group">
+    <div class="input-row">
+      <div class="input-dot">
+        <svg viewBox="0 0 24 24" fill="var(--accent)" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="3" fill="#fff"/>
+        </svg>
+      </div>
+      <select class="input-field" id="sel-origin">
+        <option value="">From</option>
+        <option value="sec17">Sector 17 Plaza</option>
+        <option value="sec22">Sector 22 Chowk</option>
+        <option value="sec35">Sector 35 Bus Stand</option>
+        <option value="sec43">Sector 43 ISBT</option>
+        <option value="pgi">PGI Hospital</option>
+        <option value="elante">Elante Mall</option>
+        <option value="tribune">Tribune Chowk</option>
+      </select>
+      <div class="input-handle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+      </div>
+    </div>
+    <div class="input-row">
+      <div class="input-dot">
+        <svg viewBox="0 0 24 24" fill="var(--red)" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle cx="12" cy="9" r="2.5" fill="#fff"/>
+        </svg>
+      </div>
+      <select class="input-field" id="sel-dest">
+        <option value="">To</option>
+        <option value="sec17">Sector 17 Plaza</option>
+        <option value="sec22">Sector 22 Chowk</option>
+        <option value="sec35">Sector 35 Bus Stand</option>
+        <option value="sec43">Sector 43 ISBT</option>
+        <option value="pgi">PGI Hospital</option>
+        <option value="elante">Elante Mall</option>
+        <option value="tribune">Tribune Chowk</option>
+      </select>
+      <div class="input-handle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrival chip row -->
+  <div class="arrival-row">
+    <div class="chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Arrive by
+    </div>
+    <input type="time" class="chip-time" id="arrival-time" value="09:00"/>
+  </div>
+
+  <button class="btn-sync" onclick="calcRoute()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/>
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+    </svg>
+    Sync Route
+  </button>
+
+  <!-- Results -->
+  <div class="panel-body">
+    <div id="results" style="display:none">
+
+      <!-- Leave at -->
+      <div class="sec-hd">Departure</div>
+      <div class="leave-hero">
+        <div class="lh-left">
+          <div class="lh-label">Leave at</div>
+          <div class="lh-time" id="r-leave">—</div>
+          <div class="lh-sub" id="r-leave-sub">—</div>
+        </div>
+        <div class="lh-right">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 15.5 13.5"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Speed -->
+      <div class="speed-card">
+        <div class="sc-left">
+          <div class="sc-label">Maintain Speed</div>
+          <div class="sc-val"><span id="r-speed">—</span> <span style="font-size:.9rem;font-weight:500;color:var(--sub)">km/h</span></div>
+          <div class="sc-sub" id="r-speed-sub">—</div>
+        </div>
+        <div class="sc-right">
+          <div class="sc-badge slower" id="r-speed-badge">Slower</div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:6px" id="r-speed-note">—</div>
+        </div>
+      </div>
+
+      <!-- Quick stats -->
+      <div class="list-group">
+        <div class="list-row">
+          <span class="lr-label">Arrive at</span>
+          <div><div class="lr-val amber" id="r-eta">—</div></div>
+        </div>
+        <div class="list-row">
+          <span class="lr-label">Distance</span>
+          <div><div class="lr-val" id="r-dist">—</div><div class="lr-sub">km</div></div>
+        </div>
+        <div class="list-row">
+          <span class="lr-label">Travel time</span>
+          <div><div class="lr-val" id="r-mins">—</div><div class="lr-sub">minutes total</div></div>
+        </div>
+        <div class="list-row">
+          <span class="lr-label">Signals hit green</span>
+          <div><div class="lr-val green" id="r-greens">—</div></div>
+        </div>
+      </div>
+
+      <!-- Why it's faster -->
+      <div class="sec-hd">Why It's Faster</div>
+
+      <div class="cmp-split">
+        <div class="cmp-half">
+          <div class="ch-label">Normal GPS</div>
+          <div class="ch-time" id="c-ng-time">—</div>
+          <div class="ch-sub">rushing at 50 km/h</div>
+        </div>
+        <div class="cmp-half">
+          <div class="ch-label">SyncDrive</div>
+          <div class="ch-time" id="c-gw-time">—</div>
+          <div class="ch-sub">steady, no stops</div>
+          <div class="ch-saved" id="ch-saved" style="display:none">— saved</div>
+        </div>
+      </div>
+
+      <!-- Time breakdown bars -->
+      <div class="tbar-section">
+        <div class="tbar-title">Normal GPS — time breakdown</div>
+        <div class="tbar-track">
+          <div class="tbar-d" id="bar-ng-d" style="background:var(--accent);width:0%"></div>
+          <div class="tbar-w" id="bar-ng-w" style="background:var(--red);width:0%"></div>
+        </div>
+        <div class="tbar-meta">
+          <span id="lbl-ng-d">—</span><span id="lbl-ng-w" style="color:var(--red)">—</span>
+        </div>
+        <div class="tbar-title">SyncDrive — time breakdown</div>
+        <div class="tbar-track">
+          <div class="tbar-d" id="bar-gw-d" style="background:var(--accent);width:0%"></div>
+          <div class="tbar-w" id="bar-gw-w" style="background:var(--red);width:0%"></div>
+        </div>
+        <div class="tbar-meta" style="margin-bottom:0">
+          <span id="lbl-gw-d">—</span><span id="lbl-gw-w">—</span>
+        </div>
+      </div>
+
+      <!-- Detail comparison rows -->
+      <div class="list-group">
+        <div class="list-row">
+          <span class="lr-label">Speed</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="lr-val red" id="c-ng-spd">—</span>
+            <span style="color:var(--muted);font-size:.7rem">→</span>
+            <span class="lr-val accent" id="c-gw-spd">—</span>
+          </div>
+        </div>
+        <div class="list-row">
+          <span class="lr-label">Red lights</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="lr-val red" id="c-ng-reds">—</span>
+            <span style="color:var(--muted);font-size:.7rem">→</span>
+            <span class="lr-val green" id="c-gw-reds">—</span>
+          </div>
+        </div>
+        <div class="list-row">
+          <span class="lr-label">Time lost waiting</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="lr-val red" id="c-ng-wait">—</span>
+            <span style="color:var(--muted);font-size:.7rem">→</span>
+            <span class="lr-val green" id="c-gw-wait">—</span>
+          </div>
+        </div>
+        <div class="list-row">
+          <span class="lr-label">Fuel usage</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="lr-val red" id="c-ng-fuel">—</span>
+            <span style="color:var(--muted);font-size:.7rem">→</span>
+            <span class="lr-val accent" id="c-gw-fuel">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signal timeline -->
+      <div class="sec-hd">Signal Timeline</div>
+      <div class="list-group" id="sig-list"></div>
+
+      <!-- Steps -->
+      <div class="sec-hd">Turn by Turn</div>
+      <div class="list-group" id="steps-list"></div>
+
+    </div><!-- /results -->
+
+    <div class="empty-state" id="empty-hint">
+      <div class="ei">🛣️</div>
+      Choose a start and end point,<br/>
+      set your arrival time,<br/>
+      then tap <strong style="color:var(--accent)">Sync Route</strong>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAP ══════════════════════════════════════════════ -->
+<div class="map-wrap">
+  <div id="map"></div>
+  <div id="hud">
+    <div class="hud-n" id="hud-spd">—</div>
+    <div class="hud-u">km / h</div>
+    <div class="hud-a" id="hud-advice">—</div>
+  </div>
+</div>
+
+</div><!-- /app -->
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+//  CLOCK
+// ═══════════════════════════════════════════════════════
+const clockEl = document.getElementById('clock');
+function tick(){
+  clockEl.textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+}
+tick(); setInterval(tick,15000);
+
+// mode tabs
+function setMode(el){ document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+
+// ═══════════════════════════════════════════════════════
+//  DATA — Chandigarh (extended: 8 places, 16 signals)
+// ═══════════════════════════════════════════════════════
+const PLACES = {
+  sec17:   {name:'Sector 17 Plaza',     lat:30.7395,lng:76.7836},
+  sec22:   {name:'Sector 22 Chowk',    lat:30.7296,lng:76.7818},
+  sec35:   {name:'Sector 35 Bus Stand',lat:30.7248,lng:76.7670},
+  sec43:   {name:'Sector 43 ISBT',     lat:30.7080,lng:76.7840},
+  pgi:     {name:'PGI Hospital',       lat:30.7657,lng:76.7794},
+  elante:  {name:'Elante Mall',        lat:30.7062,lng:76.8014},
+  tribune: {name:'Tribune Chowk',      lat:30.7018,lng:76.7914},
+};
+
+// 16 signals — realistic Chandigarh sector grid timings
+// Each red light stop in Normal GPS costs 25–45 seconds of waiting
+const SIGNALS = [
+  {id:'c1', name:'Jan Marg & Madhya Marg',    lat:30.7380,lng:76.7830,cycle:90,gS:0, gD:42},
+  {id:'c2', name:'Sector 17-22 Divider',      lat:30.7340,lng:76.7828,cycle:70,gS:12,gD:32},
+  {id:'c3', name:'Udyog Path Crossing',       lat:30.7300,lng:76.7820,cycle:80,gS:5, gD:38},
+  {id:'c4', name:'Sector 22 Inner Circle',    lat:30.7285,lng:76.7810,cycle:60,gS:20,gD:28},
+  {id:'c5', name:'Himalaya Marg Signal',      lat:30.7295,lng:76.7750,cycle:75,gS:8, gD:35},
+  {id:'c6', name:'Sector 34-35 Crossing',     lat:30.7260,lng:76.7700,cycle:90,gS:30,gD:40},
+  {id:'c7', name:'Sector 35 Market Entry',    lat:30.7248,lng:76.7682,cycle:60,gS:0, gD:25},
+  {id:'c8', name:'Airport Rd & Sec 43',       lat:30.7120,lng:76.7840,cycle:80,gS:15,gD:36},
+  {id:'c9', name:'Sector 43 Light Point',     lat:30.7090,lng:76.7840,cycle:70,gS:5, gD:30},
+  {id:'c10',name:'PGI Gate Signal',           lat:30.7620,lng:76.7795,cycle:90,gS:10,gD:45},
+  {id:'c11',name:'Madhya Marg & PGI Rd',      lat:30.7500,lng:76.7815,cycle:75,gS:25,gD:33},
+  {id:'c12',name:'Sector 11 Junction',        lat:30.7450,lng:76.7825,cycle:60,gS:0, gD:28},
+  {id:'c13',name:'Dakshin Marg & Sec 35',     lat:30.7230,lng:76.7750,cycle:85,gS:18,gD:38},
+  {id:'c14',name:'Sec 35-43 Connector',       lat:30.7165,lng:76.7790,cycle:75,gS:5, gD:32},
+  {id:'c15',name:'Elante Entry Signal',       lat:30.7080,lng:76.8000,cycle:90,gS:22,gD:40},
+  {id:'c16',name:'Tribune Chowk Signal',      lat:30.7025,lng:76.7920,cycle:70,gS:10,gD:30},
+];
+
+// 20 routes — all major pairs including new stops
+const ROUTES = {
+  // ── sec17 ↔ all ─────────────────────────────────────
+  'sec17->sec22':{sigs:['c1','c2','c3','c4'],km:1.4,
+    pts:[[30.7395,76.7836],[30.7360,76.7832],[30.7330,76.7825],[30.7300,76.7820],[30.7296,76.7818]],
+    steps:['Head south on Madhya Marg','Pass Jan Marg & Madhya Marg signal','Through Sector 17-22 Divider','Cross Udyog Path Crossing','Arrive Sector 22 Chowk']},
+  'sec22->sec17':{sigs:['c4','c3','c2','c1'],km:1.4,
+    pts:[[30.7296,76.7818],[30.7300,76.7820],[30.7330,76.7825],[30.7360,76.7832],[30.7395,76.7836]],
+    steps:['Head north on Madhya Marg','Pass Sector 22 Inner Circle','Through Udyog Path Crossing','Cross Jan Marg signal','Arrive Sector 17 Plaza']},
+  'sec17->sec35':{sigs:['c1','c2','c5','c6','c7'],km:3.4,
+    pts:[[30.7395,76.7836],[30.7350,76.7830],[30.7310,76.7820],[30.7285,76.7790],[30.7265,76.7730],[30.7248,76.7670]],
+    steps:['Head south on Madhya Marg','Pass Jan Marg signal','Turn onto Himalaya Marg','Pass Himalaya Marg Signal','Through Sector 34-35 Crossing','Arrive Sector 35 Bus Stand']},
+  'sec35->sec17':{sigs:['c7','c6','c5','c2','c1'],km:3.4,
+    pts:[[30.7248,76.7670],[30.7265,76.7730],[30.7285,76.7790],[30.7310,76.7820],[30.7350,76.7830],[30.7395,76.7836]],
+    steps:['Head north-east from Sector 35','Through Sector 34-35 Crossing','Pass Himalaya Marg Signal','Continue on Madhya Marg','Cross Jan Marg signal','Arrive Sector 17 Plaza']},
+  'sec17->sec43':{sigs:['c1','c2','c3','c8','c9'],km:3.5,
+    pts:[[30.7395,76.7836],[30.7340,76.7832],[30.7280,76.7835],[30.7200,76.7838],[30.7120,76.7840],[30.7080,76.7840]],
+    steps:['Head south on Madhya Marg','Through Sector 17-22 area','Continue south','Pass Airport Rd & Sec 43 signal','Pass Sector 43 Light Point','Arrive Sector 43 ISBT']},
+  'sec43->sec17':{sigs:['c9','c8','c3','c2','c1'],km:3.5,
+    pts:[[30.7080,76.7840],[30.7120,76.7840],[30.7200,76.7838],[30.7280,76.7835],[30.7340,76.7832],[30.7395,76.7836]],
+    steps:['Head north on Airport Rd','Pass Sector 43 signals','Continue on Madhya Marg','Through Sector 22 area','Cross Jan Marg signal','Arrive Sector 17 Plaza']},
+  'sec17->pgi':{sigs:['c12','c11','c10'],km:3.2,
+    pts:[[30.7395,76.7836],[30.7430,76.7830],[30.7480,76.7820],[30.7560,76.7800],[30.7620,76.7795],[30.7657,76.7794]],
+    steps:['Head north on Madhya Marg','Pass Sector 11 Junction','Continue north','Through Madhya Marg & PGI Rd signal','Pass PGI Gate Signal','Arrive PGI Hospital']},
+  'pgi->sec17':{sigs:['c10','c11','c12'],km:3.2,
+    pts:[[30.7657,76.7794],[30.7620,76.7795],[30.7560,76.7800],[30.7480,76.7820],[30.7430,76.7830],[30.7395,76.7836]],
+    steps:['Head south from PGI','Pass PGI Gate Signal','Continue south on Madhya Marg','Through Sector 11 Junction','Cross Jan Marg','Arrive Sector 17 Plaza']},
+  'sec17->elante':{sigs:['c1','c2','c8','c9','c15'],km:5.2,
+    pts:[[30.7395,76.7836],[30.7340,76.7832],[30.7200,76.7838],[30.7120,76.7840],[30.7080,76.7840],[30.7070,76.7920],[30.7062,76.8014]],
+    steps:['Head south on Madhya Marg','Continue south through Sector 22','Continue to Airport Rd','Pass Airport Rd signal','Pass Sec 43 area','Turn east on Airport Rd','Arrive Elante Mall']},
+  'elante->sec17':{sigs:['c15','c9','c8','c2','c1'],km:5.2,
+    pts:[[30.7062,76.8014],[30.7070,76.7920],[30.7080,76.7840],[30.7120,76.7840],[30.7200,76.7838],[30.7340,76.7832],[30.7395,76.7836]],
+    steps:['Head west from Elante','Continue west on Airport Rd','Pass Sec 43 signals','Turn north on Madhya Marg','Continue north through Sector 22','Cross Jan Marg signal','Arrive Sector 17 Plaza']},
+  'sec17->tribune':{sigs:['c1','c2','c3','c13','c16'],km:5.1,
+    pts:[[30.7395,76.7836],[30.7340,76.7828],[30.7280,76.7820],[30.7200,76.7800],[30.7100,76.7860],[30.7025,76.7920],[30.7018,76.7914]],
+    steps:['Head south on Madhya Marg','Pass Jan Marg signal','Continue south','Turn onto Dakshin Marg area','Cross Dakshin Marg signal','Pass Tribune Chowk Signal','Arrive Tribune Chowk']},
+  'tribune->sec17':{sigs:['c16','c13','c3','c2','c1'],km:5.1,
+    pts:[[30.7018,76.7914],[30.7025,76.7920],[30.7100,76.7860],[30.7200,76.7800],[30.7280,76.7820],[30.7340,76.7828],[30.7395,76.7836]],
+    steps:['Head north from Tribune Chowk','Pass Tribune Chowk Signal','Continue north on connecting road','Through Udyog Path','Cross Sector 17-22 signals','Pass Jan Marg','Arrive Sector 17 Plaza']},
+
+  // ── sec22 ↔ remaining ───────────────────────────────
+  'sec22->sec35':{sigs:['c4','c5','c6','c7'],km:2.2,
+    pts:[[30.7296,76.7818],[30.7285,76.7790],[30.7275,76.7750],[30.7260,76.7710],[30.7248,76.7670]],
+    steps:['Head south-west from Sector 22','Turn onto Himalaya Marg','Pass Himalaya Marg Signal','Through Sector 34-35 Crossing','Arrive Sector 35 Bus Stand']},
+  'sec35->sec22':{sigs:['c7','c6','c5','c4'],km:2.2,
+    pts:[[30.7248,76.7670],[30.7260,76.7710],[30.7275,76.7750],[30.7285,76.7790],[30.7296,76.7818]],
+    steps:['Head north-east from Sector 35','Pass Sector 35 Market Entry','Through Himalaya Marg Signal','Cross Sector 22 area','Arrive Sector 22 Chowk']},
+  'sec22->sec43':{sigs:['c4','c3','c8','c9'],km:2.5,
+    pts:[[30.7296,76.7818],[30.7250,76.7822],[30.7200,76.7830],[30.7140,76.7836],[30.7080,76.7840]],
+    steps:['Head south from Sector 22','Continue south on Madhya Marg','Turn onto Airport Rd south','Pass Airport Rd & Sec 43 signal','Arrive Sector 43 ISBT']},
+  'sec43->sec22':{sigs:['c9','c8','c3','c4'],km:2.5,
+    pts:[[30.7080,76.7840],[30.7140,76.7836],[30.7200,76.7830],[30.7250,76.7822],[30.7296,76.7818]],
+    steps:['Head north from Sector 43','Pass Airport Rd signals','Continue north on Madhya Marg','Through Udyog Path area','Arrive Sector 22 Chowk']},
+  'sec22->pgi':{sigs:['c3','c2','c12','c11','c10'],km:4.1,
+    pts:[[30.7296,76.7818],[30.7340,76.7825],[30.7400,76.7827],[30.7460,76.7820],[30.7560,76.7800],[30.7657,76.7794]],
+    steps:['Head north from Sector 22','Cross Sector 22 signals','Continue on Madhya Marg','Through Sector 11 Junction','Pass PGI road signal','Arrive PGI Hospital']},
+  'pgi->sec22':{sigs:['c10','c11','c12','c2','c3'],km:4.1,
+    pts:[[30.7657,76.7794],[30.7560,76.7800],[30.7460,76.7820],[30.7400,76.7827],[30.7340,76.7825],[30.7296,76.7818]],
+    steps:['Head south from PGI','Pass PGI Gate Signal','South on Madhya Marg','Through Sector 11 Junction','Cross Sector 22 signals','Arrive Sector 22 Chowk']},
+  'sec22->elante':{sigs:['c4','c9','c15'],km:3.8,
+    pts:[[30.7296,76.7818],[30.7200,76.7828],[30.7110,76.7900],[30.7070,76.7990],[30.7062,76.8014]],
+    steps:['Head south on Madhya Marg','Continue toward Airport area','Turn east toward Elante','Pass Elante Entry Signal','Arrive Elante Mall']},
+  'elante->sec22':{sigs:['c15','c9','c4'],km:3.8,
+    pts:[[30.7062,76.8014],[30.7070,76.7990],[30.7110,76.7900],[30.7200,76.7828],[30.7296,76.7818]],
+    steps:['Head west from Elante','Pass Elante Entry Signal','Continue west on Airport Rd','Turn north on Madhya Marg','Arrive Sector 22 Chowk']},
+  'sec22->tribune':{sigs:['c4','c5','c13','c16'],km:4.0,
+    pts:[[30.7296,76.7818],[30.7260,76.7790],[30.7200,76.7760],[30.7110,76.7830],[30.7025,76.7910],[30.7018,76.7914]],
+    steps:['Head south-west from Sector 22','Turn onto Dakshin Marg corridor','Through Himalaya Marg area','Cross Dakshin Marg & Sec 35 signal','Pass Tribune Chowk Signal','Arrive Tribune Chowk']},
+  'tribune->sec22':{sigs:['c16','c13','c5','c4'],km:4.0,
+    pts:[[30.7018,76.7914],[30.7025,76.7910],[30.7110,76.7830],[30.7200,76.7760],[30.7260,76.7790],[30.7296,76.7818]],
+    steps:['Head north from Tribune Chowk','Pass Tribune Chowk Signal','Through Dakshin Marg signal','Continue north-east','Cross Himalaya Marg area','Arrive Sector 22 Chowk']},
+
+  // ── sec35 ↔ remaining ───────────────────────────────
+  'sec35->sec43':{sigs:['c7','c13','c14','c9'],km:2.8,
+    pts:[[30.7248,76.7670],[30.7230,76.7720],[30.7190,76.7760],[30.7140,76.7800],[30.7090,76.7840]],
+    steps:['Head south from Sector 35','Pass Sector 35 Market Entry','Through Dakshin Marg & Sec 35','Cross Sec 35-43 Connector','Arrive Sector 43 ISBT']},
+  'sec43->sec35':{sigs:['c9','c14','c13','c7'],km:2.8,
+    pts:[[30.7090,76.7840],[30.7140,76.7800],[30.7190,76.7760],[30.7230,76.7720],[30.7248,76.7670]],
+    steps:['Head north-west from ISBT','Pass Sec 35-43 Connector','Through Dakshin Marg signal','Cross Sector 35 Market Entry','Arrive Sector 35 Bus Stand']},
+  'sec35->pgi':{sigs:['c7','c6','c5','c12','c11','c10'],km:5.8,
+    pts:[[30.7248,76.7670],[30.7270,76.7720],[30.7295,76.7760],[30.7330,76.7800],[30.7400,76.7818],[30.7480,76.7815],[30.7580,76.7800],[30.7657,76.7794]],
+    steps:['Head north-east from Sector 35','Through Sector 34-35 Crossing','Pass Himalaya Marg Signal','Continue north on Madhya Marg','Pass Sector 11 Junction','Through Madhya Marg & PGI Rd','Pass PGI Gate Signal','Arrive PGI Hospital']},
+  'pgi->sec35':{sigs:['c10','c11','c12','c5','c6','c7'],km:5.8,
+    pts:[[30.7657,76.7794],[30.7580,76.7800],[30.7480,76.7815],[30.7400,76.7818],[30.7330,76.7800],[30.7295,76.7760],[30.7270,76.7720],[30.7248,76.7670]],
+    steps:['Head south from PGI','Pass PGI Gate Signal','Through Madhya Marg & PGI Rd','Continue south on Madhya Marg','Pass Himalaya Marg Signal','Through Sector 34-35 Crossing','Continue south-west','Arrive Sector 35 Bus Stand']},
+  'sec35->elante':{sigs:['c7','c14','c9','c15'],km:3.9,
+    pts:[[30.7248,76.7670],[30.7220,76.7720],[30.7160,76.7780],[30.7090,76.7840],[30.7075,76.7920],[30.7062,76.8014]],
+    steps:['Head south from Sector 35','Pass Sector 35 Market Entry','Through Sec 35-43 Connector','Pass Sector 43 area','Turn east on Airport Rd','Arrive Elante Mall']},
+  'elante->sec35':{sigs:['c15','c9','c14','c7'],km:3.9,
+    pts:[[30.7062,76.8014],[30.7075,76.7920],[30.7090,76.7840],[30.7160,76.7780],[30.7220,76.7720],[30.7248,76.7670]],
+    steps:['Head west from Elante','Continue on Airport Rd','Pass Sector 43 signals','Through Sec 35-43 Connector','Continue north-west','Arrive Sector 35 Bus Stand']},
+  'sec35->tribune':{sigs:['c7','c13','c16'],km:3.2,
+    pts:[[30.7248,76.7670],[30.7200,76.7720],[30.7120,76.7800],[30.7030,76.7900],[30.7018,76.7914]],
+    steps:['Head south from Sector 35','Pass market entry signal','Through Dakshin Marg signal','Continue south-east','Pass Tribune Chowk Signal','Arrive Tribune Chowk']},
+  'tribune->sec35':{sigs:['c16','c13','c7'],km:3.2,
+    pts:[[30.7018,76.7914],[30.7030,76.7900],[30.7120,76.7800],[30.7200,76.7720],[30.7248,76.7670]],
+    steps:['Head north-west from Tribune Chowk','Pass Tribune Chowk Signal','Through Dakshin Marg signal','Continue north','Pass Sector 35 Market Entry','Arrive Sector 35 Bus Stand']},
+
+  // ── sec43 ↔ remaining ───────────────────────────────
+  'sec43->pgi':{sigs:['c9','c8','c3','c12','c11','c10'],km:6.2,
+    pts:[[30.7080,76.7840],[30.7120,76.7840],[30.7200,76.7838],[30.7280,76.7835],[30.7380,76.7830],[30.7460,76.7820],[30.7560,76.7800],[30.7657,76.7794]],
+    steps:['Head north from Sector 43','Pass Sector 43 signals','Continue north on Madhya Marg','Through Sector 22 area','Pass Sector 11 Junction','Through Madhya Marg & PGI Rd','Pass PGI Gate Signal','Arrive PGI Hospital']},
+  'pgi->sec43':{sigs:['c10','c11','c12','c3','c8','c9'],km:6.2,
+    pts:[[30.7657,76.7794],[30.7560,76.7800],[30.7460,76.7820],[30.7380,76.7830],[30.7280,76.7835],[30.7200,76.7838],[30.7120,76.7840],[30.7080,76.7840]],
+    steps:['Head south from PGI','Pass PGI Gate Signal','Through Madhya Marg & PGI Rd','Continue south on Madhya Marg','Through Sector 22 area','Pass Airport Rd signal','Pass Sector 43 Light Point','Arrive Sector 43 ISBT']},
+  'sec43->elante':{sigs:['c9','c15'],km:2.0,
+    pts:[[30.7080,76.7840],[30.7075,76.7900],[30.7068,76.7970],[30.7062,76.8014]],
+    steps:['Head east from Sec 43 ISBT','Continue on Airport Road','Pass Elante Entry Signal','Arrive Elante Mall']},
+  'elante->sec43':{sigs:['c15','c9'],km:2.0,
+    pts:[[30.7062,76.8014],[30.7068,76.7970],[30.7075,76.7900],[30.7080,76.7840]],
+    steps:['Head west from Elante','Continue on Airport Road','Pass Sector 43 Light Point','Arrive Sector 43 ISBT']},
+  'sec43->tribune':{sigs:['c9','c14','c16'],km:2.6,
+    pts:[[30.7080,76.7840],[30.7060,76.7860],[30.7040,76.7880],[30.7025,76.7908],[30.7018,76.7914]],
+    steps:['Head south from Sector 43','Continue south-east','Pass Sec 35-43 Connector area','Cross Tribune Chowk Signal','Arrive Tribune Chowk']},
+  'tribune->sec43':{sigs:['c16','c14','c9'],km:2.6,
+    pts:[[30.7018,76.7914],[30.7025,76.7908],[30.7040,76.7880],[30.7060,76.7860],[30.7080,76.7840]],
+    steps:['Head north from Tribune Chowk','Pass Tribune Chowk Signal','Continue north','Through Sec 35-43 Connector area','Arrive Sector 43 ISBT']},
+
+  // ── pgi ↔ remaining ─────────────────────────────────
+  'pgi->elante':{sigs:['c10','c11','c12','c8','c15'],km:7.1,
+    pts:[[30.7657,76.7794],[30.7560,76.7800],[30.7460,76.7820],[30.7380,76.7830],[30.7200,76.7838],[30.7120,76.7840],[30.7080,76.7840],[30.7070,76.7920],[30.7062,76.8014]],
+    steps:['Head south from PGI','Pass PGI Gate Signal','Continue south on Madhya Marg','Through Sector 11 Junction','Continue south past Sector 22','Pass Airport Rd signal','Through Sector 43 area','Turn east on Airport Rd','Arrive Elante Mall']},
+  'elante->pgi':{sigs:['c15','c8','c12','c11','c10'],km:7.1,
+    pts:[[30.7062,76.8014],[30.7070,76.7920],[30.7080,76.7840],[30.7120,76.7840],[30.7200,76.7838],[30.7380,76.7830],[30.7460,76.7820],[30.7560,76.7800],[30.7657,76.7794]],
+    steps:['Head west from Elante','Continue west on Airport Rd','Through Sector 43 area','Continue north on Madhya Marg','Pass Sector 22 area','Through Sector 11 Junction','Pass Madhya Marg & PGI Rd','Pass PGI Gate Signal','Arrive PGI Hospital']},
+  'pgi->tribune':{sigs:['c10','c11','c12','c13','c16'],km:8.0,
+    pts:[[30.7657,76.7794],[30.7560,76.7800],[30.7460,76.7820],[30.7380,76.7830],[30.7280,76.7820],[30.7180,76.7800],[30.7100,76.7850],[30.7030,76.7905],[30.7018,76.7914]],
+    steps:['Head south from PGI','Pass PGI Gate Signal','Continue south on Madhya Marg','Through Sector 11 Junction','Continue south','Turn onto Dakshin Marg corridor','Through Dakshin Marg signal','Pass Tribune Chowk Signal','Arrive Tribune Chowk']},
+  'tribune->pgi':{sigs:['c16','c13','c12','c11','c10'],km:8.0,
+    pts:[[30.7018,76.7914],[30.7030,76.7905],[30.7100,76.7850],[30.7180,76.7800],[30.7280,76.7820],[30.7380,76.7830],[30.7460,76.7820],[30.7560,76.7800],[30.7657,76.7794]],
+    steps:['Head north from Tribune Chowk','Pass Tribune Chowk Signal','Through Dakshin Marg signal','Continue north on Madhya Marg','Pass Sector 11 Junction','Through Madhya Marg & PGI Rd','Pass PGI Gate Signal','Arrive PGI Hospital']},
+
+  // ── elante ↔ tribune ────────────────────────────────
+  'elante->tribune':{sigs:['c15','c9','c16'],km:3.1,
+    pts:[[30.7062,76.8014],[30.7065,76.7960],[30.7055,76.7900],[30.7040,76.7860],[30.7022,76.7920],[30.7018,76.7914]],
+    steps:['Head west from Elante','Continue west on Airport Rd','Pass Elante Entry Signal area','Turn south-west','Cross Tribune Chowk Signal','Arrive Tribune Chowk']},
+  'tribune->elante':{sigs:['c16','c9','c15'],km:3.1,
+    pts:[[30.7018,76.7914],[30.7022,76.7920],[30.7040,76.7860],[30.7055,76.7900],[30.7065,76.7960],[30.7062,76.8014]],
+    steps:['Head north-east from Tribune Chowk','Pass Tribune Chowk Signal','Continue north-east','Turn east on Airport Rd','Pass Elante Entry Signal','Arrive Elante Mall']},
+};
+
+// ═══════════════════════════════════════════════════════
+//  MAP — Stadia dark tiles (free, no API key)
+// ═══════════════════════════════════════════════════════
+const map = L.map('map',{zoomControl:true}).setView([30.7280,76.7820],14);
+L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png',{
+  attribution:'© <a href="https://stadiamaps.com">Stadia</a> © <a href="https://openstreetmap.org">OSM</a>',
+  maxZoom:20,
+}).addTo(map);
+
+// Place dots (small, clean — Apple style)
+const pmks = {};
+Object.entries(PLACES).forEach(([id,p])=>{
+  const ic = L.divIcon({
+    className:'',
+    html:`<div style="
+      background:rgba(28,28,30,.85);
+      border:1.5px solid rgba(255,255,255,.2);
+      color:#f5f5f7;font-size:10px;font-weight:600;
+      padding:3px 9px;border-radius:16px;white-space:nowrap;
+      box-shadow:0 2px 10px rgba(0,0,0,.5);
+      font-family:'Inter',sans-serif;letter-spacing:-.1px;
+      backdrop-filter:blur(8px);
+    ">${p.name.split(' ').slice(0,2).join(' ')}</div>`,
+    iconAnchor:[0,0]
+  });
+  pmks[id] = L.marker([p.lat,p.lng],{icon:ic}).addTo(map).bindPopup(`<b>${p.name}</b>`);
+});
+
+// Signal markers
+const smks = {};
+SIGNALS.forEach(s=>{
+  smks[s.id] = L.circleMarker([s.lat,s.lng],{
+    radius:5,color:'rgba(255,255,255,.15)',weight:1,
+    fillColor:'#48484a',fillOpacity:1,
+  }).addTo(map).bindTooltip(`🚦 ${s.name}`,{sticky:true});
+});
+
+let rLayer=null, rNG=null, oMkr=null, dMkr=null;
+
+// ═══════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════
+const hms  = t=>{ const[h,m]=t.split(':').map(Number); return h*3600+m*60; };
+const fmt  = s=>{ const h=Math.floor(s/3600)%24,m=Math.floor((s%3600)/60); return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; };
+const mins = s=>Math.round(s/60);
+const sigR = id=>SIGNALS.find(s=>s.id===id);
+
+function phase(sig,dep,travel){ return (dep+travel)%sig.cycle; }
+function isGreen(sig,ph){ return ph>=sig.gS && ph<(sig.gS+sig.gD); }
+function waitSec(sig,ph){
+  if(isGreen(sig,ph)) return 0;
+  return ph<sig.gS ? sig.gS-ph : sig.cycle-ph+sig.gS;
+}
+
+// ═══════════════════════════════════════════════════════
+//  GREEN WAVE OPTIMIZER
+//  Only 25-45 km/h. Minimise total = drive + wait.
+//  Proves: slower + zero stops < faster + multiple stops.
+// ═══════════════════════════════════════════════════════
+function optimise(route, km, arrSec){
+  const sigs = route.sigs.map(sigR);
+  const n = sigs.length;
+  const fracs = sigs.map((_,i)=>(i+1)/(n+1));
+  const SPEEDS = [25,28,30,32,35,38,40,42,45];
+  const MAX_EARLY=25*60, STEP=15;
+  let best=Infinity, res=null;
+
+  SPEEDS.forEach(spd=>{
+    const driveSec = (km/spd)*3600;
+    const latest = arrSec - driveSec;
+    for(let off=0;off<=MAX_EARLY;off+=STEP){
+      const dep = latest-off;
+      if(dep<0) continue;
+      let elapsed=0,totalWait=0,greens=0;
+      const det = sigs.map((sig,i)=>{
+        const toSig = driveSec*fracs[i]+elapsed;
+        const ph = phase(sig,dep,toSig);
+        const g = isGreen(sig,ph);
+        const w = waitSec(sig,ph);
+        if(!g){ totalWait+=w; elapsed+=w; } else greens++;
+        return {sig,g,arrival:dep+toSig,wait:g?0:w};
+      });
+      const total = driveSec+totalWait;
+      const score = total - greens*0.5;
+      if(score<best){ best=score; res={dep,spd,driveSec,waitSec:totalWait,total,greens,n,det}; }
+    }
+  });
+  return res;
+}
+
+// ═══════════════════════════════════════════════════════
+//  NORMAL GPS SIM
+//  Same departure, 50 km/h, hits reds randomly.
+// ═══════════════════════════════════════════════════════
+function simNG(route, km, gwDep){
+  const NG=50;
+  const sigs=route.sigs.map(sigR);
+  const n=sigs.length;
+  const fracs=sigs.map((_,i)=>(i+1)/(n+1));
+  const driveSec=(km/NG)*3600;
+  let elapsed=0,totalWait=0,reds=0;
+  const det=sigs.map((sig,i)=>{
+    const toSig=driveSec*fracs[i]+elapsed;
+    const ph=phase(sig,gwDep,toSig);
+    const g=isGreen(sig,ph);
+    const w=waitSec(sig,ph);
+    if(!g){ reds++; totalWait+=w; elapsed+=w; }
+    return {sig,g,arrival:gwDep+toSig,wait:g?0:w};
+  });
+  return {spd:NG,driveSec,waitSec:totalWait,total:driveSec+totalWait,reds,det};
+}
+
+// ═══════════════════════════════════════════════════════
+//  MAIN
+// ═══════════════════════════════════════════════════════
+function calcRoute(){
+  const orig = document.getElementById('sel-origin').value;
+  const dest = document.getElementById('sel-dest').value;
+  const ts   = document.getElementById('arrival-time').value;
+
+  if(!orig||!dest){ showToast('Pick an origin and destination'); return; }
+  if(orig===dest)  { showToast('Origin and destination must differ'); return; }
+  const key = `${orig}->${dest}`;
+  const route = ROUTES[key];
+  if(!route){ showToast('No route defined for this pair'); return; }
+
+  const arrSec = hms(ts);
+  const gw = optimise(route, route.km, arrSec);
+  if(!gw){ showToast('Could not compute route'); return; }
+  const ng = simNG(route, route.km, gw.dep);
+
+  // ── Map ──────────────────────────────────────────────
+  [rLayer,rNG,oMkr,dMkr].forEach(l=>l&&map.removeLayer(l));
+
+  // Ghost normal GPS (faint dashed)
+  rNG = L.polyline(route.pts,{color:'rgba(255,69,58,.25)',weight:4,dashArray:'5 8'}).addTo(map);
+  // SyncDrive route — blue like Apple Maps active route
+  rLayer = L.polyline(route.pts,{color:'#0a84ff',weight:5,opacity:.95}).addTo(map);
+  map.fitBounds(rLayer.getBounds(),{padding:[60,60]});
+
+  // Reset signals
+  SIGNALS.forEach(s=>smks[s.id].setStyle({fillColor:'#48484a',radius:5}));
+  // Colour route signals
+  gw.det.forEach(d=>{
+    smks[d.sig.id]?.setStyle({
+      fillColor:d.g?'#30d158':'#ff453a',
+      radius:8,
+      color:d.g?'rgba(48,209,88,.3)':'rgba(255,69,58,.3)',
+      weight:2,
+    });
+  });
+
+  // Origin / dest pins
+  const o=PLACES[orig], d2=PLACES[dest];
+  oMkr = L.circleMarker([o.lat,o.lng],{radius:10,color:'#fff',weight:2.5,fillColor:'#0a84ff',fillOpacity:1})
+    .addTo(map).bindPopup(`<b>Start: ${o.name}</b>`);
+  dMkr = L.circleMarker([d2.lat,d2.lng],{radius:10,color:'#fff',weight:2.5,fillColor:'#ff453a',fillOpacity:1})
+    .addTo(map).bindPopup(`<b>End: ${d2.name}</b>`);
+
+  // Speed HUD
+  document.getElementById('hud').style.display='block';
+  document.getElementById('hud-spd').textContent=gw.spd;
+  document.getElementById('hud-advice').textContent=
+    gw.spd<=30?'Ease back — signal wave is ahead':
+    gw.spd<=38?'Steady pace — riding the wave':
+               'Keep pace — syncing with signals';
+
+  // ── Sidebar ──────────────────────────────────────────
+  const gwMins = mins(gw.total);
+  const ngMins = mins(ng.total);
+  const saved  = Math.max(0, ngMins-gwMins);
+
+  const buf = Math.round((arrSec-(gw.dep+gw.total))/60);
+  document.getElementById('r-leave').textContent = fmt(gw.dep);
+  document.getElementById('r-leave-sub').textContent =
+    buf>0 ? `Arrive ~${buf} min before target` : 'Arrive right on time';
+
+  document.getElementById('r-speed').textContent = gw.spd;
+  document.getElementById('r-speed-sub').textContent =
+    `${gw.greens}/${gw.n} signals hit green`;
+  const badge = document.getElementById('r-speed-badge');
+  if(gw.spd<=35){
+    badge.textContent='Slower — saves time'; badge.className='sc-badge slower';
+  } else {
+    badge.textContent='Steady pace'; badge.className='sc-badge steady';
+  }
+  document.getElementById('r-speed-note').textContent =
+    `vs 50 km/h + ${ng.reds} red stops`;
+
+  document.getElementById('r-eta').textContent = fmt(gw.dep+gw.total);
+  document.getElementById('r-dist').textContent = route.km.toFixed(1);
+  document.getElementById('r-mins').textContent = gwMins;
+  document.getElementById('r-greens').textContent = `${gw.greens} / ${gw.n}`;
+
+  // Comparison totals
+  document.getElementById('c-ng-time').textContent = ngMins+' min';
+  document.getElementById('c-gw-time').textContent = gwMins+' min';
+  const savedEl = document.getElementById('ch-saved');
+  if(saved>0){
+    savedEl.textContent = `${saved} min saved`; savedEl.style.display='inline-block';
+  } else savedEl.style.display='none';
+
+  // Bars
+  const maxT = Math.max(ng.total,gw.total);
+  const pct = v => ((v/maxT)*100).toFixed(1)+'%';
+  document.getElementById('bar-ng-d').style.width = pct(ng.driveSec);
+  document.getElementById('bar-ng-w').style.width = pct(ng.waitSec);
+  document.getElementById('bar-gw-d').style.width = pct(gw.driveSec);
+  document.getElementById('bar-gw-w').style.width = pct(gw.waitSec);
+  document.getElementById('lbl-ng-d').textContent = mins(ng.driveSec)+'m driving';
+  document.getElementById('lbl-ng-w').textContent = ng.waitSec>0 ? mins(ng.waitSec)+'m at reds' : 'no waits';
+  document.getElementById('lbl-gw-d').textContent = mins(gw.driveSec)+'m driving';
+  document.getElementById('lbl-gw-w').textContent = gw.waitSec>0 ? mins(gw.waitSec)+'m at reds' : '0m waiting ✓';
+
+  // Detail rows
+  document.getElementById('c-ng-spd').textContent  = '50 km/h';
+  document.getElementById('c-gw-spd').textContent  = gw.spd+' km/h';
+  document.getElementById('c-ng-reds').textContent = ng.reds+' stops';
+  document.getElementById('c-gw-reds').textContent = (gw.n-gw.greens)+' stops';
+  document.getElementById('c-ng-wait').textContent = ng.waitSec>0 ? mins(ng.waitSec)+'m lost' : '0m';
+  document.getElementById('c-gw-wait').textContent = gw.waitSec>0 ? mins(gw.waitSec)+'m' : '0m saved';
+  document.getElementById('c-ng-fuel').textContent = 'Stop-go';
+  document.getElementById('c-gw-fuel').textContent = 'Smooth';
+
+  // Signal list
+  const sl=document.getElementById('sig-list');
+  sl.innerHTML='';
+  gw.det.forEach(d=>{
+    const r=document.createElement('div');
+    r.className='sig-row';
+    r.innerHTML=`
+      <div class="sig-indicator ${d.g?'g':'r'}"></div>
+      <div class="sig-name">${d.sig.name}</div>
+      <div class="sig-time">${fmt(d.arrival)}</div>
+      <div class="sig-badge ${d.g?'g':'r'}">${d.g?'GREEN':'RED'}</div>
+    `;
+    sl.appendChild(r);
+  });
+
+  // Steps
+  const stl=document.getElementById('steps-list');
+  stl.innerHTML='';
+  route.steps.forEach((s,i)=>{
+    const r=document.createElement('div');
+    r.className='step-row';
+    r.innerHTML=`<div class="step-n">${i+1}</div><div class="step-txt">${s}</div>`;
+    stl.appendChild(r);
+  });
+
+  document.getElementById('results').style.display='block';
+  document.getElementById('empty-hint').style.display='none';
+  showToast(`Synced · ${gw.spd} km/h · leave ${fmt(gw.dep)} · ${gw.greens}/${gw.n} greens`);
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════
+let toastT;
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),4500);
+}
+</script>
+</body>
+</html>
